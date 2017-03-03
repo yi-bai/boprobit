@@ -10,6 +10,7 @@ GENERALIZED_ORDER_PROBIT <- FALSE
 
 # Generate a dataset
 # Sample Commit
+# Sample Commit 2
 n <- 5000
 e1 <- rnorm(n) #hita
 e2 <- rnorm(n) #ksi
