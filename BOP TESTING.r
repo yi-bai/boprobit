@@ -1,5 +1,5 @@
 # Testing BOP with fatigue data
-# Final@2017-3-2
+# Final@2017-3-8
 
 library(MASS)
 library(maxLik)
@@ -15,7 +15,7 @@ sed.seed(56789)
 
 
 #-----------------------
-# Likelihood function
+# Likelihood function (Normal)
 #-----------------------
 
 BOP <- function(param, dat){
@@ -72,6 +72,92 @@ BOP <- function(param, dat){
   return(-sum(ll))
 }
 
+#-------------------------------
+# Maximum Simulated Likelihood
+#-------------------------------
+library(randtoolbox)
+R <- 10
+a <- halton(n = length(x), dim = R, normal = T, init = T)
+
+
+S_BOP <- function(param, dat){
+  
+  # assign which part of data should be used in this model
+  inj <- dat[,1]
+  fatig <- dat[,2]
+  x <- dat[,c(3:22)]
+  z <- dat[,23:32]
+  
+  z <- cbind(1, z) # add an constant vector to Eq2
+  
+  # storage of parameters
+  alpha <- as.matrix(param[1:ncol(x)]) # coefficients of Eq1
+  bet <- as.matrix(param[ (ncol(x)+1) : (ncol(x)+11) ])  # coefficients of Eq2
+  ramda <- param[ncol(x)+12] 
+                        
+  cut1 <- param[ncol(x)+13]
+  cut2 <- param[ncol(x)+14]
+  cut3 <- param[ncol(x)+15]                      
+                          
+  # generate common error
+  miu <- rnorm(nrow(x),mean = 0, sd = 1) # generate common error term
+  #print(x)
+  xa  <- as.matrix(x) %*% alpha 
+                       
+  inj_star <- (xa + ramda*miu) %*% rep(1, R)
+                          
+  zb  <- as.matrix(z)%*%bet
+  fatig <- (zb + miu) %*% rep(1, R)
+                          
+  cut1_inj_star = cut1-inj_star
+  #cut1_inj_star = -inj_star  ## set cut1==0
+  cut2_inj_star = cut2-inj_star
+  cut3_inj_star = cut3-inj_star
+                          
+  # probability of Eq1
+  p11 = pnorm(cut1_inj_star)	# Injury==1
+  p11 <- log(apply(p11, MARGIN = 1, FUN = sum)/R)
+  
+  if(cut2 <= cut1){
+	p12 <- -(abs(cut1 - cut2) * 10000)
+  } else {
+	p12 <- pnorm(cut2_inj_star) - pnorm(cut1_inj_star)
+	p12 <- log(apply(p12, MARGIN = 1, FUN = sum)/R)
+  }
+  if(cut3 <= cut2){
+	p13 <- -(abs(cut2 - cut3) * 10000)
+  } else {
+	p13 <- pnorm(cut3_inj_star) - pnorm(cut2_inj_star)
+	p13 <- log(apply(p13, MARGIN = 1, FUN = sum)/R)
+  }
+  p14 <- 1 - pnorm(cut3_inj_star)
+  p14 <- log(apply(p14, MARGIN = 1, FUN = sum)/R)
+  
+  #p12 = pnorm(cut2_inj_star) - pnorm(cut1_inj_star)   # Injury == 2
+  #p13 = pnorm(cut3_inj_star) - pnorm(cut2_inj_star)   # Injury == 3
+  #p14 = 1 - pnorm(cut3_inj_star)    # Injury == 4
+                            
+  #if(cut2 <= cut1){ p12 <- pnorm(-10000) }
+  #if(cut3 <= cut2){ p13 <- pnorm(-10000) }
+                          
+  #ll_1 <- (inj==1)*log(p11) + (inj==2)*log(p12) + (inj==3)*log(p13) + (inj==4)*log(p14)  # loglikelihood function
+  ll_1 <- (inj==1)*p11 + (inj==2)*p12 + (inj==3)*p13 + (inj==4)*p14
+  #print(sum((inj==1)*log(p11)))                       
+  #probability of Eq2
+  p21 <- pnorm(fatig)
+  p21 <- apply(p21, MARGIN =1, FUN = sum)/R
+  ll_2 <- log(fatig*(p21) + (1-fatig)*(1-p21))
+                          
+  ll <- ll_1 + ll_2
+  #print(p13)
+  
+  return(-sum(ll))
+}
+
+
+
+
+
 #-------------------------
 # Set starting value
 #-------------------------
@@ -94,8 +180,8 @@ stval <- c(stval_alpha, stval_beta, -0.5, stval_cut)
 #---------------------
 # use optim to do MLE
 #---------------------
-result1 <- optim(stval, BOP, dat = mydata, method="BFGS", hessian = TRUE) # Estimate the model
-+result1 <- optim(stval, BOP, dat=mydata, method='Nelder-Mead', hessian = TRUE)
+#result1 <- optim(stval, S_BOP, dat = mydata, method="L-BFGS-B", hessian = TRUE, lower=rep(.0001, 35),upper=rep(Inf,35)) # Estimate the model
+result1 <- optim(stval, S_BOP, dat=mydata, method='Nelder-Mead', hessian = FALSE)
 #result2 <- maxLik(BOP, start = stval, dat=mydata)
 print(result1)
 
