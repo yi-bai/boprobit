@@ -80,6 +80,7 @@ library(randtoolbox)
 R <- 10
 a <- halton(n = length(mydata), dim = R, normal = T, init = T)
 
+iterate_time <- 0
 
 S_BOP <- function(param, dat){
   
@@ -154,6 +155,11 @@ S_BOP <- function(param, dat){
   ll_2 <- log(fatig*(p21) + (1-fatig)*(1-p21))
                           
   ll <- ll_1 + ll_2
+  
+  if(iterate_time %% 1000 == 0){
+    print(p13)
+  }
+  iterate_time <- iterate_time + 1
   #print(p13)
   
   return(-sum(ll))
