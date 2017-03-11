@@ -1,5 +1,5 @@
 # Testing BOP with fatigue data
-# Final@2017-3-8
+# Final@2017-3-10
 
 library(MASS)
 library(maxLik)
@@ -23,11 +23,12 @@ BOP <- function(param, dat){
   # assign which part of data should be used in this model
   inj <- dat[,1]
   fatig <- dat[,2]
-  x <- dat[,c(3:22)]
-  z <- dat[,23:32]
+  x <- dat[,c(3:21)]
+  z <- dat[,c(22:31)]
   
   z <- cbind(1, z) # add an constant vector to Eq2
-  
+  print(head(x))
+  print(head(z))
   # storage of parameters
   alpha <- as.matrix(param[1:ncol(x)]) # coefficients of Eq1
   bet <- as.matrix(param[ (ncol(x)+1) : (ncol(x)+11) ])  # coefficients of Eq2
@@ -41,12 +42,12 @@ BOP <- function(param, dat){
   miu <- rnorm(nrow(x),mean = 0, sd = 1) # generate common error term
   #print(x)
   xa  <- as.matrix(x)%*%alpha
-                       
+                      
   inj_star <- xa + ramda*miu
-                          
+                           
   zb  <- as.matrix(z)%*%bet
   fatig <- zb + miu
-                          
+                       
   cut1_inj_star = cut1-inj_star
   cut2_inj_star = cut2-inj_star
   cut3_inj_star = cut3-inj_star
@@ -61,13 +62,13 @@ BOP <- function(param, dat){
   if(cut3 <= cut2){ p13 <- pnorm(-10000) }
                           
   ll_1 <- (inj==1)*log(p11) + (inj==2)*log(p12) + (inj==3)*log(p13) + (inj==4)*log(p14)  # loglikelihood function
-  print(sum((inj==1)*log(p11)))                       
+                      
   #probability of Eq2
   p21 <- pnorm(fatig)
   ll_2 <- log(fatig*(p21) + (1-fatig)*(1-p21))
                           
   ll <- ll_1 + ll_2
-  print(p13)
+  #print(p13)
   
   return(-sum(ll))
 }
@@ -77,7 +78,7 @@ BOP <- function(param, dat){
 #-------------------------------
 library(randtoolbox)
 R <- 10
-a <- halton(n = length(x), dim = R, normal = T, init = T)
+a <- halton(n = length(mydata), dim = R, normal = T, init = T)
 
 
 S_BOP <- function(param, dat){
@@ -85,10 +86,11 @@ S_BOP <- function(param, dat){
   # assign which part of data should be used in this model
   inj <- dat[,1]
   fatig <- dat[,2]
-  x <- dat[,c(3:22)]
-  z <- dat[,23:32]
+  x <- dat[,c(3:21)]
+  z <- dat[,c(22:31)]
   
   z <- cbind(1, z) # add an constant vector to Eq2
+  
   
   # storage of parameters
   alpha <- as.matrix(param[1:ncol(x)]) # coefficients of Eq1
@@ -98,21 +100,24 @@ S_BOP <- function(param, dat){
   cut1 <- param[ncol(x)+13]
   cut2 <- param[ncol(x)+14]
   cut3 <- param[ncol(x)+15]                      
-                          
+  
+  sigma_a <- param[ncol(x)+16]
+  
   # generate common error
   miu <- rnorm(nrow(x),mean = 0, sd = 1) # generate common error term
   #print(x)
   xa  <- as.matrix(x) %*% alpha 
-                       
+  asigma <- a*sigma_a
+  
   inj_star <- (xa + ramda*miu) %*% rep(1, R)
                           
   zb  <- as.matrix(z)%*%bet
   fatig <- (zb + miu) %*% rep(1, R)
                           
-  cut1_inj_star = cut1-inj_star
+  cut1_inj_star = cut1-inj_star-asigma
   #cut1_inj_star = -inj_star  ## set cut1==0
-  cut2_inj_star = cut2-inj_star
-  cut3_inj_star = cut3-inj_star
+  cut2_inj_star = cut2-inj_star-asigma
+  cut3_inj_star = cut3-inj_star-asigma
                           
   # probability of Eq1
   p11 = pnorm(cut1_inj_star)	# Injury==1
@@ -144,7 +149,7 @@ S_BOP <- function(param, dat){
   ll_1 <- (inj==1)*p11 + (inj==2)*p12 + (inj==3)*p13 + (inj==4)*p14
   #print(sum((inj==1)*log(p11)))                       
   #probability of Eq2
-  p21 <- pnorm(fatig)
+  p21 <- pnorm(fatig+asigma)
   p21 <- apply(p21, MARGIN =1, FUN = sum)/R
   ll_2 <- log(fatig*(p21) + (1-fatig)*(1-p21))
                           
@@ -165,14 +170,14 @@ S_BOP <- function(param, dat){
 #xb_star <- iso_y + ins + lic_no + terrain_head + ope_y + light_ngt_y + light_ngt_n + age2635 + age3645 + age4655','age5665 + age6600 + gender_m + form_tag + form_head + form_side + driexp0002 + roadtype_exp + roadtype_u + x_m_fatig
 #ins + terrain_head + ope_y + time0006 + time0708 + time1719 + light_ngt_y + light_ngt_n + roadtype_exp + roadtype_u
 
-st_inj <- polr(as.factor(inj1) ~ iso_y + ins + lic_no + terrain_head + ope_y + light_ngt_y + light_ngt_n + age2635 + age3645 + age4655 + age5665 + age6600 + gender_m + form_tag + form_head + form_side + driexp0002 + roadtype_exp + roadtype_u + fatig, data=mydata, method = "probit")
+st_inj <- polr(as.factor(inj1) ~ iso_y + ins + lic_no + terrain_head + ope_y + light_ngt_y + light_ngt_n + age2635 + age4655 + age5665 + age6600 + gender_m + form_tag + form_head + form_side + driexp0002 + roadtype_exp + roadtype_u + fatig, data=mydata, method = "probit")
 stval_alpha <- as.matrix(st_inj$coefficients)
 stval_cut <- as.matrix(st_inj$zeta)
 #stval_cut <- c(0.1, 1, 1.3)
 
 st_fatig <- glm(fatig ~ ins.1 + terrain_head.1 + ope_y.1 + time0006 + time0708 + time1719 + light_ngt_y.1 + light_ngt_n.1 + roadtype_exp.1 + roadtype_u.1, family=binomial(link="probit"), data=mydata)
 stval_beta <- as.matrix(st_fatig$coefficients)
-stval <- c(stval_alpha, stval_beta, -0.5, stval_cut)
+stval <- c(stval_alpha, stval_beta, -0.3, stval_cut, 2)
 
 #stval <- c(0.04, -0.27, 0.67, -0.1, -0.6, 0.1, 0.2, -0.1, -0.1, 0.1, 0.4, 0.6, -0.1, 0.2, 0.1, -0.1, 0.1, 0.8, -0.2, 0.9, -4, 0.5, -0.2, 0.1, 0.5, 0.2, -0.1, -0.2, 0.1, 0.4, -0.3, -0.2, 0.01,  1,  1.3)
 
@@ -180,8 +185,8 @@ stval <- c(stval_alpha, stval_beta, -0.5, stval_cut)
 #---------------------
 # use optim to do MLE
 #---------------------
-#result1 <- optim(stval, S_BOP, dat = mydata, method="L-BFGS-B", hessian = TRUE, lower=rep(.0001, 35),upper=rep(Inf,35)) # Estimate the model
-result1 <- optim(stval, S_BOP, dat=mydata, method='Nelder-Mead', hessian = FALSE)
+result1 <- optim(stval, S_BOP, dat = mydata, method="BFGS", hessian = TRUE, control = list(trace =10, REPORT =1)) # Estimate the model
+#result1 <- optim(stval, BOP, dat=mydata, method='Nelder-Mead', hessian = FALSE)
 #result2 <- maxLik(BOP, start = stval, dat=mydata)
 print(result1)
 
