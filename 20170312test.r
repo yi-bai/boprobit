@@ -58,16 +58,18 @@ log.lik <- function(par , X1 , X2 , Y1 , Y2) {
 	mu1 <- as.matrix(X1) %*% Beta1 
 	mu2 <- as.matrix(X2) %*% Beta2
 	
-	llik <- 0 
+	llik <- 0
 
-	cut_y1 <- c(-10000, cut1, cut2, 10000)
+	cut_y1 <- c(-10000, as.double(cut1), as.double(cut2), 10000)
 	cut_y2 <- c(-10000, 0, 10000)
+	
 	for (i in 1:nrow(mu1)){
 		Sigma <- matrix(c(1, rho, rho, 1), 2, 2) 
 		cut_left <- cut_y1[Y1[i]]
 		cut_right <- cut_y1[Y1[i]+1]
-		cut_down <- cut_y2[Y2[i]]
-		cut_up <- cut_y2[Y2[i]+1]
+		cut_down <- cut_y2[Y2[i]+1]
+		cut_up <- cut_y2[Y2[i]+2]
+		#print(pmvnorm(lower = c(cut_left, cut_down), upper = c(cut_right, cut_up), mean = c(mu1[i,], mu2[i,]), corr = Sigma))
 		llik <- llik + log(pmvnorm(lower = c(cut_left, cut_down), upper = c(cut_right, cut_up), mean = c(mu1[i,], mu2[i,]), corr = Sigma))
 	}
 
