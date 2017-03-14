@@ -12,7 +12,7 @@ set.seed(12315)
 
 # If TEST_DATA = TRUE, use sample data for model testing
 # If TEST_DATA = FALSE, use your own data for model testing
-TEST_DATA = FALSE
+TEST_DATA = TRUE
 
 #Generating data to test the model
 if(TEST_DATA == TRUE){
@@ -55,11 +55,14 @@ if(TEST_DATA == TRUE){
  
 }
 
-iterate_time <- 0
+iterate_time <<- 0
+
+print("haha")
 
 
 # The bivariate ordered probit function
 log.lik <- function(par , X1 , X2 , Y1 , Y2) {
+  start_time <- Sys.time()
 	#X1 <- cbind(1,X1)
 	X1 <- as.matrix(X1)
 	X2 <- as.matrix(cbind(1,X2))
@@ -115,10 +118,14 @@ log.lik <- function(par , X1 , X2 , Y1 , Y2) {
 	#	llik <- 1e+20
 	#}
 	
+	time_taken <- Sys.time() - start_time
+	
 	if(iterate_time %% 1000 == 0){
     	print(llik)
 	}
-	iterate_time <- iterate_time + 1
+	iterate_time <<- iterate_time + 1
+	print(iterate_time)
+	print(time_taken)
 	
 	return(llik)
 }
