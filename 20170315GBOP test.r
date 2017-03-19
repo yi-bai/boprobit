@@ -50,16 +50,17 @@ if(TEST_DATA==TRUE){
 
 }else{
 	# set your own dataset for estimation
-	mydata <- read.csv("D:/road_safety/fatigue/20170301data.csv")
+	mydata <- read.csv("C:/Users/Bai/Documents/boprobit/20170301data.csv")
 	#mydata <- read.csv("C:/Users/liyanyan/Desktop/matlab/fatigue/20170301data.csv")
 	mydata <- mydata[1:2000,]  # small sample for testing real data
 	
+	column_offset = 1
 	# Data preperation
-	y1star <- mydata[,1]    # inj
-    y2star <- mydata[,2]    # fatig
-	x1 <- mydata[,c(3:21)]   # variable for inj
-	x2 <- mydata[,c(22:31)]  # variable for fatig
-	c1 <- mydata[,c(3:6)]  #variable for threshold function
+	y1star <- mydata[,column_offset+1]    # inj
+    y2star <- mydata[,column_offset+2]    # fatig
+	x1 <- mydata[,c((column_offset+3):(column_offset+21))]   # variable for inj
+	x2 <- mydata[,c((column_offset+22):(column_offset+31))]  # variable for fatig
+	c1 <- mydata[,c((column_offset+3):(column_offset+6))]  #variable for threshold function
 
 }
 
@@ -69,7 +70,7 @@ iterate_time <<- 0
 
 
 # The bivariate ordered probit function
-log.lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
+log_lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 	
 	# iterate_time start
 	start_time <- Sys.time()
@@ -106,10 +107,15 @@ log.lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 		cut1 <- 0
 		cut2 <- cut1 + exp(cu1) 
 		cut3 <- cut2 + exp(cu1)
+
+		matrix_dim <- dim(cu1)[1]
 		
-		cut_y1 <- c(-10000, as.double(cut1), as.double(cut2), as.double(cut3), 10000)
-		cut_y2 <- c(-10000, 0, 10000)
-	
+		cut_y1 <- matrix(
+			c(rep(-10000, matrix_dim), rep(cut1, matrix_dim), cut2, cut3, rep(10000, matrix_dim)),
+			nrow = dim(cu1)[1],
+			ncol = 5
+			)
+		cut_y2 <- c(-10000, 0, 10000)	
 	}
 
 	
@@ -118,13 +124,12 @@ log.lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 	
 	for (i in 1:nrow(mu1)){
 		Sigma <- matrix(c(1, rho, rho, 1), 2, 2) 
-		cut_left <- cut_y1[Y1[i]]
-		cut_right <- cut_y1[Y1[i]+1]
+		cut_left <- cut_y1[i, Y1[i]]
+		cut_right <- cut_y1[i, Y1[i]+1]
 		cut_down <- cut_y2[Y2[i]+1]
 		cut_up <- cut_y2[Y2[i]+2]
 		#print(pmvnorm(lower = c(cut_left, cut_down), upper = c(cut_right, cut_up), mean = c(mu1[i,], mu2[i,]), corr = Sigma))
 		llik <- llik + log(pmvnorm(lower = c(cut_left, cut_down), upper = c(cut_right, cut_up), mean = c(mu1[i,], mu2[i,]), corr = Sigma))
-		print(llik)
 	}
 	
 	#if(is.finite(llik)==TRUE){
@@ -141,6 +146,8 @@ log.lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 	iterate_time <<- iterate_time + 1
 	print(iterate_time)
 	print(time_taken)
+	print(llik)
+	print(cut_y1[1:10, ])
 	
 	return(llik)
 }
@@ -182,7 +189,7 @@ if(TEST_DATA==TRUE){
 }
 
 
-res <- optim(start.val, log.lik, method = "L-BFGS-B", hessian = TRUE, control = list(fnscale = -1), X1 = x1, X2 = x2, Y1 = y1star, Y2 = y2star, C1 = c1, lower = lower_1, upper = upper_1) 
+res <- optim(start.val, log_lik, method = "L-BFGS-B", hessian = TRUE, control = list(fnscale = -1, ndeps= rep(1e-1, 36)), X1 = x1, X2 = x2, Y1 = y1star, Y2 = y2star, C1 = c1, lower = lower_1, upper = upper_1) 
 
 #print(res)
 #gamma <- res$par[5]
