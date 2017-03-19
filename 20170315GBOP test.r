@@ -1,6 +1,6 @@
 # This program estimates a bivariate binary-ordered probit model
 # using R's optim function
-# Final@2017-3-16
+# Final@2017-3-19
 
 library(MASS)
 library(foreign)
@@ -12,10 +12,10 @@ set.seed(12315)
 
 # If TEST_DATA = TRUE, use sample data for model testing
 # If TEST_DATA = FALSE, use your own data for model testing
-TEST_DATA = FALSE
+TEST_DATA = TRUE
 
 if(TEST_DATA==TRUE){
-	n  <- 5000							
+	n  <- 2000							
 	x1 <- rnorm(n)
 	x2 <- rnorm(n)
 	c1 <- rnorm(n) # variable for threshold
@@ -50,11 +50,11 @@ if(TEST_DATA==TRUE){
 
 }else{
 	# set your own dataset for estimation
-	mydata <- read.csv("C:/Users/Bai/Documents/boprobit/20170301data.csv")
-	#mydata <- read.csv("C:/Users/liyanyan/Desktop/matlab/fatigue/20170301data.csv")
+	#mydata <- read.csv("C:/Users/Bai/Documents/boprobit/20170301data.csv")
+	mydata <- read.csv("C:/Users/liyanyan/Desktop/matlab/fatigue/20170301data.csv")
 	mydata <- mydata[1:2000,]  # small sample for testing real data
 	
-	column_offset = 1
+	column_offset = 0
 	# Data preperation
 	y1star <- mydata[,column_offset+1]    # inj
     y2star <- mydata[,column_offset+2]    # fatig
@@ -85,7 +85,13 @@ log_lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 	Beta1 <- par[1 : ncol(X1)]		#parameters for the y1
 	Beta2 <- par[(ncol(X1) + 1) : (ncol(X1) + ncol(X2))]   #parameters for y2
 	gamma <- par[ncol(X1) + ncol(X2) + 1]  # for calculate rho
-	theta <- par[(ncol(X1) + ncol(X2) + 2) : (ncol(X1) + ncol(X2) + 6)]  # for thresholds
+	
+	if(TEST_DATA==TRUE){
+		theta <- par[(ncol(X1) + ncol(X2) + 2) : (ncol(X1) + ncol(X2) + 3)]
+	}else{
+		theta <- par[(ncol(X1) + ncol(X2) + 2) : (ncol(X1) + ncol(X2) + 6)]  # for thresholds
+	}
+	
 	
 	#	multiply gamma by a column of 1's, and then transform: (exp(rho)-1)/(1+exp(rho))
 	rho <- (exp(gamma) - 1) / (1 + exp( gamma)) 
@@ -97,8 +103,16 @@ log_lik <- function(par , X1 , X2 , Y1 , Y2, C1) {
 		cu1 <- as.matrix(C1) %*% theta  # xb for threshold funtion
 		cut1 <- 0  
 		cut2 <- cut1 + exp(cu1) 
+		
+		matrix_dim <- dim(cu1)[1]
+		
+		cut_y1 <- matrix(
+			c(rep(-10000, matrix_dim), rep(cut1, matrix_dim), cut2, rep(10000, matrix_dim)),
+			nrow = dim(cu1)[1],
+			ncol = 4
+			)
 	
-		cut_y1 <- c(-10000, as.double(cut1), as.double(cut2), 10000)
+		#cut_y1 <- c(-10000, as.double(cut1), as.double(cut2), 10000)
 		cut_y2 <- c(-10000, 0, 10000)
 		
 	}else{
@@ -189,7 +203,8 @@ if(TEST_DATA==TRUE){
 }
 
 
-res <- optim(start.val, log_lik, method = "L-BFGS-B", hessian = TRUE, control = list(fnscale = -1, ndeps= rep(1e-1, 36)), X1 = x1, X2 = x2, Y1 = y1star, Y2 = y2star, C1 = c1, lower = lower_1, upper = upper_1) 
+#res <- optim(start.val, log_lik, method = "L-BFGS-B", hessian = TRUE, control = list(fnscale = -1, ndeps= rep(1e-1, 36)), X1 = x1, X2 = x2, Y1 = y1star, Y2 = y2star, C1 = c1, lower = lower_1, upper = upper_1) 
+res <- optim(start.val, log_lik, method = "L-BFGS-B", hessian = TRUE, control = list(fnscale = -1, ndeps= rep(1e-1, 6)), X1 = x1, X2 = x2, Y1 = y1star, Y2 = y2star, C1 = c1, lower = lower_1, upper = upper_1) 
 
 #print(res)
 #gamma <- res$par[5]
